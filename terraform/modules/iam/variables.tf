@@ -1,3 +1,9 @@
+variable "enable_irsa" {
+  description = "Flag to enable creation of the EKS Pod IRSA IAM role and policy"
+  type        = bool
+  default     = true
+}
+
 variable "github_repository" {
   description = "GitHub repository formatted as owner/repo (e.g., yousef-usama/aurafs)"
   type        = string

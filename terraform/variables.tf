@@ -16,6 +16,12 @@ variable "project_name" {
   default     = "aurafs"
 }
 
+variable "enable_cloudfront" {
+  description = "Flag to enable CloudFront edge CDN distribution (requires account verification with AWS Support)"
+  type        = bool
+  default     = false
+}
+
 variable "github_repository" {
   description = "GitHub repository owner and name formatted as <owner>/<repo>"
   type        = string

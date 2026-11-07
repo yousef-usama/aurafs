@@ -49,7 +49,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/health", get(health_handler))
         .route("/files", get(list_files_handler))
         .route("/files/{*path}", get(get_file_handler))
-        .route("/files/{*path}/tags", post(set_tag_handler))
+        .route("/tags/{*path}", post(set_tag_handler))
         .route("/tags/search", get(search_tags_handler))
         .route("/queue", get(get_queue_handler))
         .route("/device", get(get_device_handler))
@@ -221,5 +221,27 @@ async fn get_device_handler(State(state): State<AppState>) -> impl IntoResponse 
                 error: Some(e.to_string()),
             }),
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_router_initialization() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.redb");
+        let cache = CacheManager::new(&db_path).unwrap();
+
+        let state = AppState {
+            cache,
+            start_time: Instant::now(),
+            watch_dir: "/tmp/test".to_string(),
+        };
+
+        let router = create_router(state);
+        assert!(!format!("{:?}", router).is_empty());
     }
 }

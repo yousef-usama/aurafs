@@ -151,7 +151,130 @@ Passed checks: 91, Failed checks: 0, Skipped checks: 0
 
 ---
 
-## 3. Visual Evidence Gallery
+## 3. Live AWS Cloud Deployment & Distributed Pipeline Evidence
+
+The following logs represent verifiable, live operational data executed against AWS region `eu-central-1` (Account `339712755065`).
+
+### 3.1 Kubernetes EKS Nodes Status
+
+```text
+$ kubectl get nodes -o wide
+NAME                                           STATUS   ROLES    AGE     VERSION                INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                        KERNEL-VERSION                    CONTAINER-RUNTIME
+ip-10-0-12-187.eu-central-1.compute.internal   Ready    <none>   15m     v1.31.14-eks-6e7947a   10.0.12.187   <none>        Amazon Linux 2023.12.20261102   6.1.189-236.400.amzn2023.x86_64   containerd://2.3.7+unknown
+```
+
+### 3.2 Kubernetes Workload Pods Status
+
+```text
+$ kubectl get pods -n aurafs -o wide
+NAME                            READY   STATUS    RESTARTS   AGE   IP            NODE                                           NOMINATED NODE   READINESS GATES
+aurafs-cloud-7c447d7fdf-bmnpn   1/1     Running   0          6m    10.0.12.21    ip-10-0-12-187.eu-central-1.compute.internal   <none>           <none>
+aurafs-cloud-7c447d7fdf-xdbr4   1/1     Running   0          6m    10.0.12.199   ip-10-0-12-187.eu-central-1.compute.internal   <none>           <none>
+```
+
+### 3.3 End-to-End File Synchronization (Local Daemon -> S3 -> DynamoDB)
+
+A test file was created locally at `~/aurafs/test-sync.txt`. The local daemon detected the file, computed its BLAKE3 hash (`0370b387...`), committed it to the embedded `redb` write-ahead log, streamed it to Amazon S3, and recorded the initial metadata in DynamoDB:
+
+```json
+$ curl -s http://127.0.0.1:7700/files/test-sync.txt
+{
+  "success": true,
+  "data": {
+    "relative_path": "test-sync.txt",
+    "size_bytes": 70,
+    "blake3_hash": "0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab",
+    "mime_type": null,
+    "created_at": "2026-11-07T07:00:31.012414Z",
+    "modified_at": "2026-11-07T07:00:31.012417Z",
+    "s3_key": "files/0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab/test-sync.txt",
+    "sync_status": "SYNCED",
+    "tags": {
+      "classification": "confidential"
+    }
+  },
+  "error": null
+}
+```
+
+Verified raw object in Amazon S3:
+
+```text
+$ aws s3 ls s3://aurafs-blobs-339712755065-dev/files/ --recursive
+2026-11-07 09:00:32         70 files/0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab/test-sync.txt
+```
+
+### 3.4 Asynchronous SQS Event & Cloud Worker Enrichment
+
+S3 triggered an `ObjectCreated` event to SQS queue `aurafs-events-dev`. The `aurafs-cloud` pod on EKS dequeued the notification, downloaded the blob, executed the content analyzer pipeline, and enriched the DynamoDB record:
+
+```json
+$ kubectl logs -n aurafs -l app.kubernetes.io/name=aurafs-cloud --tail=10
+{"timestamp":"2026-11-07T07:05:06.565700Z","level":"INFO","fields":{"message":"Starting SQS Event Consumer long-polling loop","queue_url":"https://sqs.eu-central-1.amazonaws.com/339712755065/aurafs-events-dev"},"target":"aurafs_cloud::consumer"}
+{"timestamp":"2026-11-07T07:05:06.780593Z","level":"INFO","fields":{"message":"Processing newly uploaded blob for enrichment","bucket":"aurafs-blobs-339712755065-dev","key":"files/0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab/test-sync.txt"},"target":"aurafs_cloud::consumer"}
+{"timestamp":"2026-11-07T07:05:06.824639Z","level":"DEBUG","fields":{"message":"Executing content analyzer","analyzer":"MimeDetector"},"target":"aurafs_cloud::consumer"}
+{"timestamp":"2026-11-07T07:05:06.824671Z","level":"DEBUG","fields":{"message":"Executing content analyzer","analyzer":"HashVerifier"},"target":"aurafs_cloud::consumer"}
+{"timestamp":"2026-11-07T07:05:06.824695Z","level":"DEBUG","fields":{"message":"Executing content analyzer","analyzer":"ExifExtractor"},"target":"aurafs_cloud::consumer"}
+{"timestamp":"2026-11-07T07:05:06.875194Z","level":"INFO","fields":{"message":"Persisted enriched metadata to DynamoDB","key":"files/0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab/test-sync.txt","mime":"Some(\"text/plain\")","hash":"Some(\"0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab\")","attributes":0},"target":"aurafs_cloud::consumer"}
+```
+
+Verified enriched single-table item in DynamoDB:
+
+```json
+$ aws dynamodb scan --table-name aurafs-metadata-dev --region eu-central-1
+{
+    "Items": [
+        {
+            "pk": { "S": "FILE#test-sync.txt" },
+            "sk": { "S": "#META" },
+            "relative_path": { "S": "test-sync.txt" },
+            "size_bytes": { "N": "70" },
+            "blake3_hash": { "S": "0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab" },
+            "s3_key": { "S": "files/0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab/test-sync.txt" },
+            "sync_status": { "S": "SYNCED" },
+            "mime_type": { "S": "text/plain" },
+            "verified_hash": { "S": "0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab" },
+            "enriched_at": { "S": "2026-11-07T07:05:06.824706262+00:00" },
+            "modified_at": { "S": "2026-11-07T07:00:31.012417+00:00" },
+            "gsi1_pk": { "S": "DEVICE#7e1ad2fd-e017-4903-bb5b-0e94cbc691c2" },
+            "gsi1_sk": { "S": "2026-11-07T07:00:31.012417+00:00" }
+        }
+    ],
+    "Count": 1,
+    "ScannedCount": 1
+}
+```
+
+### 3.5 Metadata Extensibility & Local Tag Query
+
+Verified querying the local embedded L1 cache by indexed tags:
+
+```json
+$ curl -s "http://127.0.0.1:7700/tags/search?key=classification&value=confidential"
+{
+  "success": true,
+  "data": [
+    {
+      "relative_path": "test-sync.txt",
+      "size_bytes": 70,
+      "blake3_hash": "0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab",
+      "mime_type": null,
+      "created_at": "2026-11-07T07:00:31.012414Z",
+      "modified_at": "2026-11-07T07:00:31.012417Z",
+      "s3_key": "files/0370b38776c48d031090654cf1f9c2e7f5a9d31522f38c58bb15f5028570b2ab/test-sync.txt",
+      "sync_status": "SYNCED",
+      "tags": {
+        "classification": "confidential"
+      }
+    }
+  ],
+  "error": null
+}
+```
+
+---
+
+## 4. Visual Evidence Gallery
 
 Live screenshots of the user interface, terminal verification runs, and infrastructure metrics are maintained in `docs/screenshots/`:
 
@@ -165,9 +288,15 @@ docs/screenshots/
 
 ---
 
-## 4. Comprehensive Incident Post-Mortem Log
+## 5. Comprehensive Incident Post-Mortem Log
 
 For full details on production incidents encountered during development, refer to Section 4 of [README.md](../README.md):
 - **Incident 001**: Cargo Workspace Manifest Validation Failure on Member Dependencies.
 - **Incident 002**: AWS OIDC Identity Provider Conflict on Pre-existing GitHub Provider.
 - **Incident 003**: Homebrew Interactive Stdin Deadlock During Non-Interactive Installation.
+- **Incident 004**: Terraform Lifecycle Deprecation Warning on S3 Non-Current Expiration.
+- **Incident 005**: Cargo Clippy `result_large_err` Warning on Embedded Cache Error Variant.
+- **Incident 006**: Terraform Planning Count Evaluation on Unknown Computed Resource Attributes.
+- **Incident 007**: Axum Path Wildcard Sub-Segment Collision in Administration API Router.
+- **Incident 008**: AWS SDK Rust Profile Provider Parser Failure on Unrecognized `login_session` Configuration Key.
+- **Incident 009**: Unrestricted Ancestor Traversal in Debounced File System Watcher.

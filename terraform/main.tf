@@ -45,6 +45,7 @@ module "metadata" {
 
 # 6. Content Delivery Network (CloudFront Edge Distribution)
 module "cdn" {
+  count                          = var.enable_cloudfront ? 1 : 0
   source                         = "./modules/cdn"
   s3_bucket_id                   = module.storage.bucket_id
   s3_bucket_arn                  = module.storage.bucket_arn

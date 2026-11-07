@@ -99,7 +99,7 @@ resource "aws_iam_role_policy_attachment" "github_actions_attach" {
 # 2. Kubernetes Pod Service Account IAM Role (IRSA - Least Privilege)
 # ---------------------------------------------------------------------------------------------------------------------
 resource "aws_iam_role" "cloud_pod_irsa" {
-  count       = var.eks_oidc_provider_arn != "" ? 1 : 0
+  count       = var.enable_irsa ? 1 : 0
   name        = "aurafs-cloud-pod-irsa"
   description = "IAM Role assumed by aurafs-cloud Kubernetes pods via IAM Roles for Service Accounts (IRSA)"
 
@@ -124,7 +124,7 @@ resource "aws_iam_role" "cloud_pod_irsa" {
 }
 
 resource "aws_iam_policy" "cloud_pod_policy" {
-  count       = var.eks_oidc_provider_arn != "" ? 1 : 0
+  count       = var.enable_irsa ? 1 : 0
   name        = "aurafs-cloud-pod-policy"
   description = "Runtime permissions for aurafs-cloud enrichment service"
 
@@ -171,7 +171,7 @@ resource "aws_iam_policy" "cloud_pod_policy" {
 }
 
 resource "aws_iam_role_policy_attachment" "cloud_pod_attach" {
-  count      = var.eks_oidc_provider_arn != "" ? 1 : 0
+  count      = var.enable_irsa ? 1 : 0
   role       = aws_iam_role.cloud_pod_irsa[0].name
   policy_arn = aws_iam_policy.cloud_pod_policy[0].arn
 }

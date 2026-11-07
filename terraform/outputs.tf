@@ -15,7 +15,7 @@ output "sqs_queue_url" {
 
 output "cloudfront_domain_name" {
   description = "Domain name of the CloudFront CDN distribution"
-  value       = module.cdn.domain_name
+  value       = try(module.cdn[0].domain_name, "disabled-awaiting-aws-account-verification")
 }
 
 output "eks_cluster_name" {

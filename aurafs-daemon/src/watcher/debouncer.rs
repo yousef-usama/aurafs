@@ -166,8 +166,23 @@ impl FileWatcherService {
         Ok(())
     }
 
-    /// Filter temporary files, editor swap files, and system artifacts.
+    /// Filter temporary files, editor swap files, hidden directories (.git, .aurafs), and build artifacts (target).
     fn is_ignored_path(path: &Path) -> bool {
+        for component in path.components() {
+            if let std::path::Component::Normal(comp) = component {
+                if let Some(s) = comp.to_str() {
+                    if s == ".git"
+                        || s == ".aurafs"
+                        || s == ".github"
+                        || s == "target"
+                        || s == "node_modules"
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
         if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
             if file_name.starts_with('.')
                 || file_name.ends_with('~')

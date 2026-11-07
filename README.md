@@ -187,6 +187,62 @@ AuraFS metadata access patterns are handled by a single table using composite ke
 
 ---
 
+### Incident 006: Terraform Planning Evaluation Failure on Computed OIDC Provider ARN
+
+- **Symptoms & Error**:
+  ```text
+  Error: Invalid count argument on modules/iam/main.tf line 102:
+  count = var.eks_oidc_provider_arn != "" ? 1 : 0
+  The "count" value depends on resource attributes that cannot be determined until apply.
+  ```
+- **Root Cause Analysis (RCA)**:
+  Terraform requires resource count expressions to be evaluatable statically at plan time. Because `var.eks_oidc_provider_arn` was computed during EKS cluster provisioning in the same apply run, Terraform refused to predict whether 0 or 1 IAM IRSA roles should be scheduled for creation.
+- **Resolution & Engineering Remediation**:
+  Replaced dynamic string emptiness inspection with a statically typed boolean configuration flag (`variable "enable_irsa" { type = bool; default = true }`), allowing Terraform's plan engine to resolve resource cardinality deterministically before network execution.
+
+---
+
+### Incident 007: Axum Path Wildcard Sub-Segment Collision in Administration Router
+
+- **Symptoms & Error**:
+  ```text
+  thread 'main' panicked at aurafs-daemon/src/api/routes.rs:52:10:
+  Invalid route "/files/{*path}/tags": Insertion failed due to conflict with previously registered route: /files/{*path}
+  ```
+- **Root Cause Analysis (RCA)**:
+  Axum uses the `matchit` radix-tree routing engine, which enforces the strict invariant that wildcard path captures (`{*path}`) must occupy the final terminal segment of a route pattern. Suffixing a wildcard route with `/tags` violates radix traversal boundaries and triggers an immediate runtime panic.
+- **Resolution & Engineering Remediation**:
+  Decoupled the resource endpoints into distinct prefix hierarchies: `/files/{*path}` for binary and metadata inspection, and `/tags/{*path}` for mutable tag updates. Added a dedicated router unit test (`test_router_initialization`) to prevent regression.
+
+---
+
+### Incident 008: AWS SDK Rust Profile Parser Failure on Unrecognized `login_session` Key
+
+- **Symptoms & Error**:
+  ```text
+  WARN aws_config::meta::credentials::chain: provider failed to provide credentials provider=Profile error=unexpected credentials error: profile file credentials provider initialization error already taken
+  ERROR aurafs_daemon::sync::engine: Failed to upload file to S3 error=AWS S3 SDK error: dispatch failure
+  ```
+- **Root Cause Analysis (RCA)**:
+  Newer AWS CLI v2 tools record a `login_session` property inside `~/.aws/config`. When the AWS SDK for Rust (`aws-config`) constructed the local profile chain, its config parser encountered the unsupported property, aborting initialization of the profile credential provider.
+- **Resolution & Engineering Remediation**:
+  Sanitized `~/.aws/config` to adhere to standard SDK schema specifications and ensured explicit environment variable overrides (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) take precedence in developer automation scripts.
+
+---
+
+### Incident 009: Unfiltered Git Ancestor Traversal During Local Workspace Daemon Execution
+
+- **Symptoms & Error**:
+  ```text
+  INFO aurafs_daemon: Committed file event to sync queue seq_id=12 path=.git/objects/45/ef7f...
+  ```
+- **Root Cause Analysis (RCA)**:
+  The debounced file system watcher's ignore filter inspected only `path.file_name()`. When files changed inside subdirectories of `.git/` or `target/`, the individual file names did not begin with a dot, allowing hundreds of transient Git packfiles and build artifacts to enter the cloud synchronization queue.
+- **Resolution & Engineering Remediation**:
+  Upgraded `is_ignored_path` to iterate over all path components (`path.components()`), instantly pruning any event whose ancestor hierarchy contains `.git`, `target`, `.aurafs`, or other transient directory trees.
+
+---
+
 ## 5. Cost Notes & Teardown Protocol
 
 ### Cost Optimization Architecture
