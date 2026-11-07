@@ -12,11 +12,6 @@ A high-performance, local-first background file synchronization daemon and cloud
 
 ## 1. System Architecture
 
-![AuraFS System Architecture](docs/architecture-overview.png)
-
-<details>
-<summary><strong>Expand Declarative Mermaid Architecture Diagram</strong></summary>
-
 ```mermaid
 flowchart TB
     subgraph local["Local Client Machine (macOS / Linux)"]
@@ -60,8 +55,6 @@ flowchart TB
     engine <-.->|"pull remote updates"| dynamo
     engine <-.->|"accelerated blob download"| cf
 ```
-
-</details>
 
 ---
 

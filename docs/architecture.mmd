@@ -1,0 +1,40 @@
+flowchart TB
+    subgraph local["Local Client Machine (macOS / Linux)"]
+        dir["Watched Directory<br/>~/aurafs/"]
+        watcher["File Watcher<br/>(notify crate)"]
+        debouncer["Event Debouncer<br/>(500ms quiet window)"]
+        engine["Sync Engine<br/>(Tokio async tasks)"]
+        cache["L1 Metadata Cache<br/>(redb pure-Rust)"]
+        wal["Persistent Sync Queue<br/>(redb write-ahead log)"]
+        api["Local HTTP API<br/>(Axum, localhost:7700)"]
+
+        dir -->|"raw fs events"| watcher
+        watcher -->|"filter & debounce"| debouncer
+        debouncer -->|"stabilized events"| engine
+        engine <-->|"read/write metadata"| cache
+        engine -->|"persist pending operations"| wal
+        api <-->|"query status & tags"| cache
+    end
+
+    subgraph aws["AWS Cloud Backend (eu-central-1)"]
+        s3["Amazon S3<br/>(Versioned Blob Storage)"]
+        sqs["Amazon SQS + DLQ<br/>(Event Queue)"]
+        dynamo["Amazon DynamoDB<br/>(Single-Table Design)"]
+        cf["Amazon CloudFront<br/>(Edge CDN Distribution)"]
+
+        subgraph eks["Amazon EKS Kubernetes Cluster"]
+            cloud["aurafs-cloud Pods<br/>(Rust enrichment service)"]
+            irsa["IAM Role for Service Accounts<br/>(IRSA least privilege)"]
+            irsa -.-> cloud
+        end
+
+        s3 -->|"ObjectCreated notification"| sqs
+        sqs -->|"long-poll batch consume"| cloud
+        cloud -->|"inspect & enrich"| s3
+        cloud -->|"write enriched metadata"| dynamo
+        cf -->|"origin fetch with OAC"| s3
+    end
+
+    engine -->|"multipart chunked upload"| s3
+    engine -->|"conditional idempotency write"| dynamo
+    engine <-.->|"pull remote updates"| dynamo
