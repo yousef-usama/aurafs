@@ -1,9 +1,12 @@
 name: Continuous Deployment
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target deployment environment'
+        required: true
+        default: 'dev'
 
 permissions:
   id-token: write # Required for AWS OIDC authentication
