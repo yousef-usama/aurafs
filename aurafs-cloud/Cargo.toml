@@ -28,3 +28,4 @@ infer = { workspace = true }
 kamadak-exif = { workspace = true }
 blake3 = { workspace = true }
 hex = { workspace = true }
+urlencoding = "2.1"

@@ -53,7 +53,21 @@ test watcher::debouncer::tests::test_watcher_debouncer_lifecycle ... ok
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
 ```
 
-### 1.3 Async Cloud Synchronization Architecture
+### 1.3 Cloud Enrichment Service Test Results
+
+```text
+$ cargo test -p aurafs-cloud
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.17s
+     Running unittests src/main.rs (target/debug/deps/aurafs_cloud-4245436c55497c21)
+
+running 2 tests
+test enrichment::hash::tests::test_hash_verifier ... ok
+test enrichment::mime::tests::test_mime_detection ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+### 1.4 Async Cloud Synchronization Architecture
 
 - **S3 Multipart Uploading**: Automatic threshold branching at 8 MB. Files > 8 MB stream in 8 MB chunks with 4 concurrent upload parts managed via `tokio::task::JoinSet` and `tokio::sync::Semaphore`. Incomplete uploads trigger automated abort cleanup on part failure.
 - **DynamoDB Idempotency**: Single-Table updates enforce conditional check expression:
