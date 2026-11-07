@@ -13,10 +13,10 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: eu-central-1
-  IAM_ROLE_ARN: arn:aws:iam::339712755065:role/aurafs-github-actions-deploy
-  ECR_REPOSITORY: 339712755065.dkr.ecr.eu-central-1.amazonaws.com/aurafs-cloud
-  EKS_CLUSTER_NAME: aurafs-eks-dev
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
+  IAM_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'aurafs-eks-dev' }}
 
 jobs:
   deploy-infrastructure:
@@ -25,12 +25,6 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-
-      - name: Debug GitHub OIDC Token Claims
-        run: |
-          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
-          echo "=== DECODED OIDC JWT PAYLOAD ==="
-          echo "$TOKEN" | jq -R 'split(".") | .[1] | @base64d | fromjson'
 
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -60,12 +54,6 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-
-      - name: Debug GitHub OIDC Token Claims
-        run: |
-          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r '.value')
-          echo "=== DECODED OIDC JWT PAYLOAD ==="
-          echo "$TOKEN" | jq -R 'split(".") | .[1] | @base64d | fromjson'
 
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4

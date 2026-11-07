@@ -300,3 +300,5 @@ For full details on production incidents encountered during development, refer t
 - **Incident 007**: Axum Path Wildcard Sub-Segment Collision in Administration API Router.
 - **Incident 008**: AWS SDK Rust Profile Provider Parser Failure on Unrecognized `login_session` Configuration Key.
 - **Incident 009**: Unrestricted Ancestor Traversal in Debounced File System Watcher.
+- **Incident 010**: GitHub Actions OIDC Subject Claim Numeric Account Identifier Format Mismatch & Remote State Bootstrap.
+- **Incident 011**: EKS Cluster API Access Rejection for CI/CD Pipeline IAM Role via `aws-auth` ConfigMap.

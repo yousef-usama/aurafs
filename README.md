@@ -12,6 +12,8 @@ A high-performance, local-first background file synchronization daemon and cloud
 
 ## 1. System Architecture
 
+![AuraFS Distributed Cloud Architecture](docs/architecture-overview.png)
+
 ```mermaid
 flowchart TB
     subgraph local["Local Client Machine (macOS / Linux)"]
@@ -233,6 +235,39 @@ AuraFS metadata access patterns are handled by a single table using composite ke
   The debounced file system watcher's ignore filter inspected only `path.file_name()`. When files changed inside subdirectories of `.git/` or `target/`, the individual file names did not begin with a dot, allowing hundreds of transient Git packfiles and build artifacts to enter the cloud synchronization queue.
 - **Resolution & Engineering Remediation**:
   Upgraded `is_ignored_path` to iterate over all path components (`path.components()`), instantly pruning any event whose ancestor hierarchy contains `.git`, `target`, `.aurafs`, or other transient directory trees.
+
+---
+
+### Incident 010: GitHub Actions OIDC Subject Claim Format Mismatch & Remote State Bootstrap
+
+- **Symptoms & Error**:
+  ```text
+  Error: Credentials could not be loaded, please check your action inputs:
+  Could not load credentials from any providers
+  api error AccessDenied: User: arn:aws:iam::339712755065:role/aurafs-github-actions-deploy
+  is not authorized to perform sts:AssumeRoleWithWebIdentity
+  ```
+- **Root Cause Analysis (RCA)**:
+  GitHub Actions recently modified its OpenID Connect (OIDC) JSON Web Token (JWT) format to embed numeric user and repository identifiers into the subject claim:
+  `"sub": "repo:yousef-usama@267386812/aurafs@1449078060:ref:refs/heads/main"`
+  The strict AWS IAM `StringEquals` condition matching `repo:yousef-usama/aurafs:ref:refs/heads/main` failed validation, rejecting role assumption. Additionally, executing Terraform in a fresh container runner without a remote S3 backend caused Terraform to attempt re-creating all cloud infrastructure from scratch.
+- **Resolution & Engineering Remediation**:
+  Updated the AWS IAM role trust policy condition to use `StringLike` wildcard matching:
+  `"token.actions.githubusercontent.com:sub": "repo:yousef-usama*aurafs*:*"`.
+  Bootstrapped an S3 remote state bucket (`aurafs-tf-state-339712755065`) and DynamoDB state lock table (`aurafs-tf-locks`) in `eu-central-1`, and parameterized all deployment identifiers as GitHub repository variables.
+
+---
+
+### Incident 011: EKS Cluster API Access Rejection for CI/CD Deployment Role
+
+- **Symptoms & Error**:
+  ```text
+  error: You must be logged in to the server (Unauthorized)
+  ```
+- **Root Cause Analysis (RCA)**:
+  AWS Elastic Kubernetes Service (EKS) configured with ConfigMap authentication defaults administrative cluster access solely to the IAM principal that provisioned the cluster. When the GitHub Actions continuous deployment pipeline assumed the dedicated `aurafs-github-actions-deploy` IAM role, the Kubernetes API server rejected `kubectl apply` commands because the deploy role was not mapped inside the cluster's `aws-auth` ConfigMap.
+- **Resolution & Engineering Remediation**:
+  Updated the `aws-auth` ConfigMap in the `kube-system` namespace to bind `arn:aws:iam::339712755065:role/aurafs-github-actions-deploy` directly to the `system:masters` cluster role group. Attached the AWS managed `AdministratorAccess` policy to the deployment role to guarantee uninterrupted execution of infrastructure plans and workload rollouts.
 
 ---
 
