@@ -1,9 +1,9 @@
+use aurafs_core::hashing::hash_file_sync;
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use aurafs_core::hashing::hash_file_sync;
-use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use thiserror::Error;
 use tokio::sync::{mpsc, Semaphore};
 
@@ -47,7 +47,9 @@ impl FileWatcherService {
         event_tx: mpsc::Sender<DebouncedFileEvent>,
     ) -> Self {
         let watch_dir = watch_dir.into();
-        let canonical_dir = watch_dir.canonicalize().unwrap_or_else(|_| watch_dir.clone());
+        let canonical_dir = watch_dir
+            .canonicalize()
+            .unwrap_or_else(|_| watch_dir.clone());
         Self {
             watch_dir: canonical_dir,
             debounce_duration: Duration::from_millis(debounce_ms),
@@ -195,7 +197,10 @@ mod tests {
         let (tx, mut rx) = mpsc::channel(32);
         // Fast 150ms debounce for unit test execution
         let watcher = FileWatcherService::new(watch_dir.clone(), 150, 2, tx);
-        watcher.start().await.expect("Failed to start watcher service");
+        watcher
+            .start()
+            .await
+            .expect("Failed to start watcher service");
 
         // Give the OS file watcher thread 50ms to attach
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -211,7 +216,12 @@ mod tests {
             .expect("Channel closed");
 
         match event {
-            DebouncedFileEvent::CreateOrModify { relative_path, blake3_hash, size_bytes, .. } => {
+            DebouncedFileEvent::CreateOrModify {
+                relative_path,
+                blake3_hash,
+                size_bytes,
+                ..
+            } => {
                 assert_eq!(relative_path, "sample.txt");
                 assert_eq!(blake3_hash, hash_bytes(file_data));
                 assert_eq!(size_bytes, file_data.len() as u64);

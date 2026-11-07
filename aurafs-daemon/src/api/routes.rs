@@ -1,4 +1,4 @@
-use std::time::Instant;
+use crate::cache::CacheManager;
 use axum::{
     extract::{Path as AxumPath, Query, State},
     http::StatusCode,
@@ -7,8 +7,8 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
+use std::time::Instant;
 use tower_http::trace::TraceLayer;
-use crate::cache::CacheManager;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -68,10 +68,21 @@ async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {
 
 async fn list_files_handler(State(state): State<AppState>) -> impl IntoResponse {
     match state.cache.list_all_files() {
-        Ok(files) => (StatusCode::OK, Json(ApiResponse { success: true, data: Some(files), error: None })),
+        Ok(files) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                data: Some(files),
+                error: None,
+            }),
+        ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                error: Some(e.to_string()),
+            }),
         ),
     }
 }
@@ -82,14 +93,29 @@ async fn get_file_handler(
 ) -> impl IntoResponse {
     let clean_path = path.trim_start_matches('/');
     match state.cache.get_file_metadata(clean_path) {
-        Ok(Some(meta)) => (StatusCode::OK, Json(ApiResponse { success: true, data: Some(meta), error: None })),
+        Ok(Some(meta)) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                data: Some(meta),
+                error: None,
+            }),
+        ),
         Ok(None) => (
             StatusCode::NOT_FOUND,
-            Json(ApiResponse { success: false, data: None, error: Some("File not tracked".to_string()) }),
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                error: Some("File not tracked".to_string()),
+            }),
         ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                error: Some(e.to_string()),
+            }),
         ),
     }
 }
@@ -100,14 +126,26 @@ async fn set_tag_handler(
     Json(payload): Json<TagPayload>,
 ) -> impl IntoResponse {
     let clean_path = path.trim_start_matches('/');
-    match state.cache.set_file_tag(clean_path, payload.key, payload.value).await {
+    match state
+        .cache
+        .set_file_tag(clean_path, payload.key, payload.value)
+        .await
+    {
         Ok(()) => (
             StatusCode::OK,
-            Json(ApiResponse::<String> { success: true, data: Some("Tag recorded".to_string()), error: None }),
+            Json(ApiResponse::<String> {
+                success: true,
+                data: Some("Tag recorded".to_string()),
+                error: None,
+            }),
         ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse::<String> { success: false, data: None, error: Some(e.to_string()) }),
+            Json(ApiResponse::<String> {
+                success: false,
+                data: None,
+                error: Some(e.to_string()),
+            }),
         ),
     }
 }
@@ -117,34 +155,71 @@ async fn search_tags_handler(
     Query(query): Query<TagSearchQuery>,
 ) -> impl IntoResponse {
     match state.cache.find_files_by_tag(&query.key, &query.value) {
-        Ok(matched) => (StatusCode::OK, Json(ApiResponse { success: true, data: Some(matched), error: None })),
+        Ok(matched) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                data: Some(matched),
+                error: None,
+            }),
+        ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                error: Some(e.to_string()),
+            }),
         ),
     }
 }
 
 async fn get_queue_handler(State(state): State<AppState>) -> impl IntoResponse {
     match state.cache.get_pending_sync_operations() {
-        Ok(ops) => (StatusCode::OK, Json(ApiResponse { success: true, data: Some(ops), error: None })),
+        Ok(ops) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                data: Some(ops),
+                error: None,
+            }),
+        ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                error: Some(e.to_string()),
+            }),
         ),
     }
 }
 
 async fn get_device_handler(State(state): State<AppState>) -> impl IntoResponse {
     match state.cache.get_device_state() {
-        Ok(Some(info)) => (StatusCode::OK, Json(ApiResponse { success: true, data: Some(info), error: None })),
+        Ok(Some(info)) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                success: true,
+                data: Some(info),
+                error: None,
+            }),
+        ),
         Ok(None) => (
             StatusCode::NOT_FOUND,
-            Json(ApiResponse { success: false, data: None, error: Some("Device uninitialized".to_string()) }),
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                error: Some("Device uninitialized".to_string()),
+            }),
         ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
+            Json(ApiResponse {
+                success: false,
+                data: None,
+                error: Some(e.to_string()),
+            }),
         ),
     }
 }

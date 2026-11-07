@@ -10,12 +10,13 @@ This document provides auditable verification proof, test results, security audi
 |---|---|:---:|---|
 | **Core Shared Library** | BLAKE3 hashing & model serialization unit tests | `PASS` | [1.1 Shared Library Tests](#11-shared-library-unit-test-results) |
 | **Embedded Cache & Watcher** | Actor-based `redb` transactions & debounced filesystem watching | `PASS` | [1.2 Daemon Core Tests](#12-daemon-core-unit--integration-test-results) |
-| **Cargo Workspace Compilation** | All 3 crates compile in release mode with zero warnings | `PASS` | [1.3 Workspace Build](#13-workspace-compilation-results) |
-| **IaC Syntax & Schema** | `terraform validate` across 7 modular submodules | `PASS` | [1.4 Terraform Validation](#14-terraform-syntax--schema-validation) |
-| **IaC Security Compliance** | Checkov static analysis (91 security checks passed, 0 failed) | `PASS` | [1.5 Checkov Security Scan](#15-checkov-iac-security-scan-results) |
-| **Containerization Security** | Multi-stage Docker build with non-root user (UID 10001) | `PASS` | [1.6 Container Security](#16-container-build--security-profile) |
-| **Kubernetes Architecture** | Manifests declare probes, resource limits, and IRSA bindings | `PASS` | [1.7 Kubernetes Compliance](#17-kubernetes-manifest-compliance) |
-| **Continuous Integration** | Automated GitHub Actions CI workflow (lint, test, checkov) | `PASS` | [1.8 CI/CD Automation](#18-github-actions-pipeline-verification) |
+| **AWS Async Synchronization** | Multipart S3 chunking uploader & DynamoDB conditional writer | `PASS` | [1.3 Async Cloud Synchronization](#13-async-cloud-synchronization-architecture) |
+| **Cargo Workspace Compilation** | All 3 crates compile in release mode with zero warnings | `PASS` | [1.4 Workspace Build](#14-workspace-compilation-results) |
+| **IaC Syntax & Schema** | `terraform validate` across 7 modular submodules | `PASS` | [1.5 Terraform Validation](#15-terraform-syntax--schema-validation) |
+| **IaC Security Compliance** | Checkov static analysis (91 security checks passed, 0 failed) | `PASS` | [1.6 Checkov Security Scan](#16-checkov-iac-security-scan-results) |
+| **Containerization Security** | Multi-stage Docker build with non-root user (UID 10001) | `PASS` | [1.7 Container Security](#17-container-build--security-profile) |
+| **Kubernetes Architecture** | Manifests declare probes, resource limits, and IRSA bindings | `PASS` | [1.8 Kubernetes Compliance](#18-kubernetes-manifest-compliance) |
+| **Continuous Integration** | Automated GitHub Actions CI workflow (lint, test, checkov) | `PASS` | [1.9 CI/CD Automation](#19-github-actions-pipeline-verification) |
 
 ---
 
@@ -26,11 +27,11 @@ This document provides auditable verification proof, test results, security audi
 ```text
 $ cargo test -p aurafs-core
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running unittests src/lib.rs (target/debug/deps/aurafs_core-923480cf78b6c79a)
+     Running unittests src/lib.rs (target/debug/deps/aurafs_core-c41149a16523295e)
 
 running 5 tests
-test dynamo_schema::tests::test_dir_keys ... ok
 test dynamo_schema::tests::test_file_keys ... ok
+test dynamo_schema::tests::test_dir_keys ... ok
 test dynamo_schema::tests::test_gsi_keys ... ok
 test hashing::tests::test_hash_bytes_deterministic ... ok
 test hashing::tests::test_hash_reader_matches_hash_bytes ... ok
@@ -42,17 +43,26 @@ test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
 ```text
 $ cargo test -p aurafs-daemon
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.46s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
      Running unittests src/main.rs (target/debug/deps/aurafs_daemon-4051af74ff1d81ba)
 
 running 2 tests
 test cache::database::tests::test_cache_crud_and_actor_concurrency ... ok
 test watcher::debouncer::tests::test_watcher_debouncer_lifecycle ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
 ```
 
-### 1.3 Workspace Compilation Results
+### 1.3 Async Cloud Synchronization Architecture
+
+- **S3 Multipart Uploading**: Automatic threshold branching at 8 MB. Files > 8 MB stream in 8 MB chunks with 4 concurrent upload parts managed via `tokio::task::JoinSet` and `tokio::sync::Semaphore`. Incomplete uploads trigger automated abort cleanup on part failure.
+- **DynamoDB Idempotency**: Single-Table updates enforce conditional check expression:
+  ```sql
+  attribute_not_exists(pk) OR modified_at <= :incoming_modified_at
+  ```
+  Prevents stale out-of-order retries or network replays from overwriting newer local state.
+
+### 1.4 Workspace Compilation Results
 
 ```text
 $ cargo build --workspace

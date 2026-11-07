@@ -1,7 +1,7 @@
-use std::path::Path;
-use std::sync::Arc;
 use aurafs_core::models::{ConflictRecord, DeviceInfo, FileMetadata, SyncOperation, SyncStatus};
 use redb::{Database, ReadableTable, TableDefinition};
+use std::path::Path;
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 
@@ -156,27 +156,48 @@ impl CacheManager {
         tokio::spawn(async move {
             while let Some(cmd) = write_rx.recv().await {
                 match cmd {
-                    DbWriteCommand::UpsertFileMetadata { metadata, responder } => {
+                    DbWriteCommand::UpsertFileMetadata {
+                        metadata,
+                        responder,
+                    } => {
                         let res = Self::handle_upsert_file(&actor_db, metadata);
                         let _ = responder.send(res);
                     }
-                    DbWriteCommand::UpdateSyncStatus { path, status, responder } => {
+                    DbWriteCommand::UpdateSyncStatus {
+                        path,
+                        status,
+                        responder,
+                    } => {
                         let res = Self::handle_update_status(&actor_db, &path, status);
                         let _ = responder.send(res);
                     }
-                    DbWriteCommand::EnqueueSyncOperation { operation, responder } => {
+                    DbWriteCommand::EnqueueSyncOperation {
+                        operation,
+                        responder,
+                    } => {
                         let res = Self::handle_enqueue(&actor_db, operation);
                         let _ = responder.send(res);
                     }
-                    DbWriteCommand::DeleteSyncOperation { sequence_id, responder } => {
+                    DbWriteCommand::DeleteSyncOperation {
+                        sequence_id,
+                        responder,
+                    } => {
                         let res = Self::handle_delete_op(&actor_db, sequence_id);
                         let _ = responder.send(res);
                     }
-                    DbWriteCommand::SetTag { path, key, value, responder } => {
+                    DbWriteCommand::SetTag {
+                        path,
+                        key,
+                        value,
+                        responder,
+                    } => {
                         let res = Self::handle_set_tag(&actor_db, &path, &key, &value);
                         let _ = responder.send(res);
                     }
-                    DbWriteCommand::RecordConflict { conflict, responder } => {
+                    DbWriteCommand::RecordConflict {
+                        conflict,
+                        responder,
+                    } => {
                         let res = Self::handle_record_conflict(&actor_db, conflict);
                         let _ = responder.send(res);
                     }
@@ -206,7 +227,11 @@ impl CacheManager {
         Ok(())
     }
 
-    fn handle_update_status(db: &Database, path: &str, status: SyncStatus) -> Result<(), CacheError> {
+    fn handle_update_status(
+        db: &Database,
+        path: &str,
+        status: SyncStatus,
+    ) -> Result<(), CacheError> {
         let write_txn = db.begin_write()?;
         {
             let mut table = write_txn.open_table(TABLE_FILE_META)?;
@@ -227,7 +252,12 @@ impl CacheManager {
         let seq_id = {
             let mut table = write_txn.open_table(TABLE_SYNC_QUEUE)?;
             // Compute next sequence ID monotonically
-            let last_id = table.iter()?.next_back().map(|item| item.map(|(k, _)| k.value())).transpose()?.unwrap_or(0);
+            let last_id = table
+                .iter()?
+                .next_back()
+                .map(|item| item.map(|(k, _)| k.value()))
+                .transpose()?
+                .unwrap_or(0);
             let next_id = last_id + 1;
             op.sequence_id = next_id;
             let bytes = bincode::serialize(&op)?;
@@ -297,25 +327,42 @@ impl CacheManager {
     pub async fn upsert_file_metadata(&self, metadata: FileMetadata) -> Result<(), CacheError> {
         let (tx, rx) = oneshot::channel();
         self.write_tx
-            .send(DbWriteCommand::UpsertFileMetadata { metadata, responder: tx })
+            .send(DbWriteCommand::UpsertFileMetadata {
+                metadata,
+                responder: tx,
+            })
             .await
             .map_err(|_| CacheError::ChannelClosed)?;
         rx.await.map_err(|_| CacheError::ChannelClosed)?
     }
 
-    pub async fn update_sync_status(&self, path: impl Into<String>, status: SyncStatus) -> Result<(), CacheError> {
+    pub async fn update_sync_status(
+        &self,
+        path: impl Into<String>,
+        status: SyncStatus,
+    ) -> Result<(), CacheError> {
         let (tx, rx) = oneshot::channel();
         self.write_tx
-            .send(DbWriteCommand::UpdateSyncStatus { path: path.into(), status, responder: tx })
+            .send(DbWriteCommand::UpdateSyncStatus {
+                path: path.into(),
+                status,
+                responder: tx,
+            })
             .await
             .map_err(|_| CacheError::ChannelClosed)?;
         rx.await.map_err(|_| CacheError::ChannelClosed)?
     }
 
-    pub async fn enqueue_sync_operation(&self, operation: SyncOperation) -> Result<u64, CacheError> {
+    pub async fn enqueue_sync_operation(
+        &self,
+        operation: SyncOperation,
+    ) -> Result<u64, CacheError> {
         let (tx, rx) = oneshot::channel();
         self.write_tx
-            .send(DbWriteCommand::EnqueueSyncOperation { operation, responder: tx })
+            .send(DbWriteCommand::EnqueueSyncOperation {
+                operation,
+                responder: tx,
+            })
             .await
             .map_err(|_| CacheError::ChannelClosed)?;
         rx.await.map_err(|_| CacheError::ChannelClosed)?
@@ -325,13 +372,21 @@ impl CacheManager {
     pub async fn delete_sync_operation(&self, sequence_id: u64) -> Result<(), CacheError> {
         let (tx, rx) = oneshot::channel();
         self.write_tx
-            .send(DbWriteCommand::DeleteSyncOperation { sequence_id, responder: tx })
+            .send(DbWriteCommand::DeleteSyncOperation {
+                sequence_id,
+                responder: tx,
+            })
             .await
             .map_err(|_| CacheError::ChannelClosed)?;
         rx.await.map_err(|_| CacheError::ChannelClosed)?
     }
 
-    pub async fn set_file_tag(&self, path: impl Into<String>, key: impl Into<String>, value: impl Into<String>) -> Result<(), CacheError> {
+    pub async fn set_file_tag(
+        &self,
+        path: impl Into<String>,
+        key: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Result<(), CacheError> {
         let (tx, rx) = oneshot::channel();
         self.write_tx
             .send(DbWriteCommand::SetTag {
@@ -349,7 +404,10 @@ impl CacheManager {
     pub async fn record_conflict(&self, conflict: ConflictRecord) -> Result<(), CacheError> {
         let (tx, rx) = oneshot::channel();
         self.write_tx
-            .send(DbWriteCommand::RecordConflict { conflict, responder: tx })
+            .send(DbWriteCommand::RecordConflict {
+                conflict,
+                responder: tx,
+            })
             .await
             .map_err(|_| CacheError::ChannelClosed)?;
         rx.await.map_err(|_| CacheError::ChannelClosed)?
@@ -358,7 +416,10 @@ impl CacheManager {
     pub async fn save_device_state(&self, info: DeviceInfo) -> Result<(), CacheError> {
         let (tx, rx) = oneshot::channel();
         self.write_tx
-            .send(DbWriteCommand::SaveDeviceState { info, responder: tx })
+            .send(DbWriteCommand::SaveDeviceState {
+                info,
+                responder: tx,
+            })
             .await
             .map_err(|_| CacheError::ChannelClosed)?;
         rx.await.map_err(|_| CacheError::ChannelClosed)?
@@ -407,7 +468,11 @@ impl CacheManager {
         Ok(operations)
     }
 
-    pub fn find_files_by_tag(&self, key: &str, value: &str) -> Result<Vec<FileMetadata>, CacheError> {
+    pub fn find_files_by_tag(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Result<Vec<FileMetadata>, CacheError> {
         let all_files = self.list_all_files()?;
         let matched = all_files
             .into_iter()
@@ -449,10 +514,15 @@ mod tests {
         );
 
         // 1. Insert file metadata
-        cache.upsert_file_metadata(meta.clone()).await.expect("upsert failed");
+        cache
+            .upsert_file_metadata(meta.clone())
+            .await
+            .expect("upsert failed");
 
         // 2. Read file metadata
-        let retrieved = cache.get_file_metadata("docs/architecture.md").expect("read failed");
+        let retrieved = cache
+            .get_file_metadata("docs/architecture.md")
+            .expect("read failed");
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().size_bytes, 1024);
 
@@ -462,22 +532,34 @@ mod tests {
             .await
             .expect("set tag failed");
 
-        let tagged_files = cache.find_files_by_tag("category", "documentation").expect("tag query failed");
+        let tagged_files = cache
+            .find_files_by_tag("category", "documentation")
+            .expect("tag query failed");
         assert_eq!(tagged_files.len(), 1);
         assert_eq!(tagged_files[0].relative_path, "docs/architecture.md");
 
         // 4. Queue operations
         let op = SyncOperation::new_put(0, "docs/architecture.md", meta.blake3_hash.clone(), 1024);
-        let seq = cache.enqueue_sync_operation(op).await.expect("enqueue failed");
+        let seq = cache
+            .enqueue_sync_operation(op)
+            .await
+            .expect("enqueue failed");
         assert_eq!(seq, 1);
 
-        let pending = cache.get_pending_sync_operations().expect("get pending failed");
+        let pending = cache
+            .get_pending_sync_operations()
+            .expect("get pending failed");
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].sequence_id, 1);
 
         // 5. Delete operation
-        cache.delete_sync_operation(1).await.expect("delete op failed");
-        let pending_after = cache.get_pending_sync_operations().expect("get pending failed");
+        cache
+            .delete_sync_operation(1)
+            .await
+            .expect("delete op failed");
+        let pending_after = cache
+            .get_pending_sync_operations()
+            .expect("get pending failed");
         assert_eq!(pending_after.len(), 0);
     }
 }
