@@ -12,7 +12,9 @@ A high-performance, local-first background file synchronization daemon and cloud
 
 ## 1. System Architecture
 
-![AuraFS Distributed Cloud Architecture](docs/architecture-overview.png)
+![AuraFS Distributed Cloud Architecture](docs/aurafs-distributed-cloud.png)
+
+![AuraFS Architecture Overview](docs/architecture-overview.png)
 
 ```mermaid
 flowchart TB
