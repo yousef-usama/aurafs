@@ -87,3 +87,8 @@ tasks:
     desc: 'Safely destroy all cloud infrastructure to prevent ongoing charges'
     cmds:
       - terraform -chdir=terraform destroy -auto-approve
+
+  diagram:
+    desc: 'Render Lucidchart-style architecture diagram via Python diagrams & Graphviz in Docker'
+    cmds:
+      - docker run --rm -v $(pwd)/docs:/docs -w /docs python:3.11-slim bash -c "apt-get update && apt-get install -y --no-install-recommends graphviz fonts-liberation && pip install --no-cache-dir diagrams && python3 generate_architecture_diagram.py"
