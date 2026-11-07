@@ -271,6 +271,21 @@ AuraFS metadata access patterns are handled by a single table using composite ke
 
 ---
 
+### Incident 012: Docker Build Cache Key Failure on Missing `Cargo.lock` in CI Context
+
+- **Symptoms & Error**:
+  ```text
+  ERROR: failed to build: failed to solve: failed to compute cache key:
+  failed to calculate checksum of ref: "/Cargo.lock": not found
+  Dockerfile:10: COPY Cargo.toml Cargo.lock ./
+  ```
+- **Root Cause Analysis (RCA)**:
+  The workspace `.gitignore` file contained a blanket exclusion for `Cargo.lock`. While Rust library authors often ignore lockfiles, application binaries and multi-stage container pipelines require explicit lockfile pinning to guarantee bit-for-bit dependency reproducibility. Because `git` did not track `Cargo.lock`, the GitHub Actions clean checkout lacked the file, causing Docker BuildKit's cache-preloading layer to fail.
+- **Resolution & Engineering Remediation**:
+  Removed `Cargo.lock` from `.gitignore` and committed the complete dependency graph into Git. Hardened the Dockerfile layer caching instruction to `COPY Cargo.toml Cargo.lock* ./`, preventing build failures even in environments where lockfiles are dynamically generated.
+
+---
+
 ## 5. Cost Notes & Teardown Protocol
 
 ### Cost Optimization Architecture

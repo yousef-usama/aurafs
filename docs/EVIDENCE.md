@@ -302,3 +302,4 @@ For full details on production incidents encountered during development, refer t
 - **Incident 009**: Unrestricted Ancestor Traversal in Debounced File System Watcher.
 - **Incident 010**: GitHub Actions OIDC Subject Claim Numeric Account Identifier Format Mismatch & Remote State Bootstrap.
 - **Incident 011**: EKS Cluster API Access Rejection for CI/CD Pipeline IAM Role via `aws-auth` ConfigMap.
+- **Incident 012**: Docker Build Cache Key Failure on Missing `Cargo.lock` in CI Runner Context.

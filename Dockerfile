@@ -7,7 +7,7 @@ FROM rust:bookworm AS builder
 WORKDIR /usr/src/aurafs
 
 # Pre-copy manifests for dependency layer caching
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml Cargo.lock* ./
 COPY aurafs-core/Cargo.toml aurafs-core/
 COPY aurafs-daemon/Cargo.toml aurafs-daemon/
 COPY aurafs-cloud/Cargo.toml aurafs-cloud/
