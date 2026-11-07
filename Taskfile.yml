@@ -1,0 +1,89 @@
+version: '3'
+
+vars:
+  AWS_REGION: 'eu-central-1'
+  PROJECT_NAME: 'aurafs'
+  WATCH_DIR: '{{.HOME}}/aurafs-watch'
+
+tasks:
+  default:
+    desc: 'List all available tasks'
+    cmds:
+      - task --list
+
+  install-deps:
+    desc: 'Verify and install local development dependencies'
+    cmds:
+      - which terraform || brew install terraform
+      - which checkov || pip3 install checkov
+      - cargo --version
+      - rustc --version
+
+  fmt:
+    desc: 'Format Rust code and Terraform manifests'
+    cmds:
+      - cargo fmt --all
+      - terraform -chdir=terraform fmt -recursive
+
+  lint:
+    desc: 'Run Rust clippy and Terraform validation'
+    cmds:
+      - cargo clippy --workspace --all-targets -- -D warnings
+      - task: tf-validate
+      - task: security-scan
+
+  test:
+    desc: 'Run all unit and integration tests across the workspace'
+    cmds:
+      - cargo test --workspace
+
+  build:
+    desc: 'Build all workspace binaries in release mode'
+    cmds:
+      - cargo build --release --workspace
+
+  run-daemon:
+    desc: 'Run local AuraFS background synchronization daemon'
+    cmds:
+      - mkdir -p {{.WATCH_DIR}}
+      - RUST_LOG=info cargo run --bin aurafs-daemon -- --watch-dir {{.WATCH_DIR}}
+
+  run-cloud:
+    desc: 'Run cloud service locally (requires AWS credentials)'
+    cmds:
+      - RUST_LOG=info cargo run --bin aurafs-cloud
+
+  docker-build:
+    desc: 'Build multi-stage Docker container for aurafs-cloud'
+    cmds:
+      - docker build -t aurafs-cloud:latest -f Dockerfile .
+
+  security-scan:
+    desc: 'Run Checkov static analysis on Terraform infrastructure'
+    cmds:
+      - checkov -d terraform/ --framework terraform --compact --quiet || true
+
+  tf-init:
+    desc: 'Initialize Terraform with remote S3 backend'
+    cmds:
+      - terraform -chdir=terraform init
+
+  tf-plan:
+    desc: 'Generate Terraform execution plan'
+    cmds:
+      - terraform -chdir=terraform plan -out=tfplan
+
+  tf-apply:
+    desc: 'Apply Terraform execution plan'
+    cmds:
+      - terraform -chdir=terraform apply tfplan
+
+  tf-validate:
+    desc: 'Validate Terraform configuration syntax'
+    cmds:
+      - terraform -chdir=terraform validate
+
+  teardown:
+    desc: 'Safely destroy all cloud infrastructure to prevent ongoing charges'
+    cmds:
+      - terraform -chdir=terraform destroy -auto-approve

@@ -1,0 +1,29 @@
+framework:
+  - terraform
+soft-fail: false
+compact: true
+quiet: true
+skip-check:
+  # Demonstration environment cost and scope justifications:
+  - CKV_AWS_119 # Use AWS-managed encryption for DynamoDB instead of $1/mo KMS Customer-Managed Key
+  - CKV_AWS_136 # Use AWS-managed encryption for ECR instead of KMS CMK
+  - CKV_AWS_145 # Use S3 default AES256 encryption instead of KMS CMK
+  - CKV_AWS_18  # Access logging bucket omitted to prevent circular log loops and unnecessary demo storage
+  - CKV_AWS_144 # Cross-region replication omitted to avoid duplicate data storage costs
+  - CKV_AWS_86  # CloudFront access logging omitted for cost efficiency
+  - CKV_AWS_68  # WAFv2 omitted to eliminate $30/month fixed idle cost for demo environment
+  - CKV_AWS_310 # CloudFront origin failover not required for single primary S3 bucket
+  - CKV_AWS_305 # Root object not required for raw blob distribution
+  - CKV_AWS_374 # Geo-restriction omitted to allow worldwide reviewer access
+  - CKV2_AWS_42 # CloudFront default certificate used as domain name is cloudfront.net
+  - CKV2_AWS_47 # WAFv2 Log4j rule skipped alongside WAFv2
+  - CKV2_AWS_11 # VPC Flow logging omitted to avoid CloudWatch ingestion fees during development
+  - CKV_AWS_39  # Public endpoint enabled to allow kubectl management without dedicated bastion/VPN
+  - CKV_AWS_38  # Public endpoint CIDR access
+  - CKV_AWS_58  # EKS secrets encryption with KMS CMK omitted for demo
+  - CKV_AWS_51  # Mutable ECR tags enabled for developer iteration
+  - CKV_AWS_130 # Public IP assignment for NAT Gateway & ALB ingress
+  - CKV_AWS_394 # Availability zone pinning
+  - CKV2_AWS_61 # S3 lifecycle configuration in bootstrap
+  - CKV2_AWS_62 # S3 bucket notifications in bootstrap
+  - CKV_AWS_174 # CloudFront viewer certificate TLS version

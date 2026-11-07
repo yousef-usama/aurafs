@@ -1,0 +1,30 @@
+[package]
+name = "aurafs-cloud"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Cloud metadata enrichment and event consumer service for AuraFS running on EKS"
+
+[dependencies]
+aurafs-core = { path = "../aurafs-core" }
+tokio = { workspace = true }
+axum = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+aws-sdk-dynamodb = { workspace = true }
+aws-sdk-sqs = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+infer = { workspace = true }
+kamadak-exif = { workspace = true }
+blake3 = { workspace = true }
+hex = { workspace = true }

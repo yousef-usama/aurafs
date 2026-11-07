@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aurafs-cloud-config
+  namespace: aurafs
+data:
+  AWS_REGION: "eu-central-1"
+  RUST_LOG: "info,aurafs_cloud=debug"
+  DYNAMODB_TABLE: "aurafs-metadata-dev"
+  S3_BUCKET: "aurafs-blobs-339712755065-dev"
+  SQS_QUEUE_URL: "https://sqs.eu-central-1.amazonaws.com/339712755065/aurafs-events-dev"
+  HTTP_PORT: "8080"

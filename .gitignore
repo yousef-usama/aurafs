@@ -1,0 +1,46 @@
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# redb database & local state
+*.redb
+*.redb.lock
+aurafs-local.redb*
+
+# Environment & credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+.terraform.lock.hcl
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Local watch directory testing
+test_watch/
+test_data/
+aurafs-sync-dir/
+
+# Docker
+.dockerignore

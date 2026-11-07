@@ -1,0 +1,93 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write # Required for AWS OIDC authentication
+  contents: read
+
+env:
+  AWS_REGION: eu-central-1
+  IAM_ROLE_ARN: arn:aws:iam::339712755065:role/aurafs-github-actions-deploy
+  ECR_REPOSITORY: 339712755065.dkr.ecr.eu-central-1.amazonaws.com/aurafs-cloud
+  EKS_CLUSTER_NAME: aurafs-eks-dev
+
+jobs:
+  deploy-infrastructure:
+    name: Terraform Plan & Apply (OIDC Authenticated)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.IAM_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.4
+
+      - name: Initialize Terraform Remote State
+        run: terraform -chdir=terraform init
+
+      - name: Generate Infrastructure Plan
+        run: terraform -chdir=terraform plan -out=tfplan
+
+      - name: Apply Infrastructure Changes
+        run: terraform -chdir=terraform apply -auto-approve tfplan
+
+  build-and-deploy-workload:
+    name: Build Container & Deploy to EKS
+    needs: deploy-infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.IAM_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Tag Container Image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t ${{ env.ECR_REPOSITORY }}:$IMAGE_TAG -t ${{ env.ECR_REPOSITORY }}:latest .
+          docker push ${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+          docker push ${{ env.ECR_REPOSITORY }}:latest
+
+      - name: Setup Kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.31.0'
+
+      - name: Configure Kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+      - name: Deploy Kubernetes Manifests
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/serviceaccount.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/hpa.yaml
+          kubectl apply -f k8s/deployment.yaml
+
+      - name: Verify Workload Rollout
+        run: |
+          kubectl rollout status deployment/aurafs-cloud -n aurafs --timeout=180s

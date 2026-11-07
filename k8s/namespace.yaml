@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aurafs
+  labels:
+    app.kubernetes.io/name: aurafs
+    app.kubernetes.io/part-of: aurafs-platform
+    environment: dev
