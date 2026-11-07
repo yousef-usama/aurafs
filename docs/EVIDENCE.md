@@ -9,12 +9,13 @@ This document provides auditable verification proof, test results, security audi
 | Component / Requirement | Validation Check | Live Status | Evidence Section Link |
 |---|---|:---:|---|
 | **Core Shared Library** | BLAKE3 hashing & model serialization unit tests | `PASS` | [1.1 Shared Library Tests](#11-shared-library-unit-test-results) |
-| **Cargo Workspace Compilation** | All 3 crates compile in release mode with zero warnings | `PASS` | [1.2 Workspace Build](#12-workspace-compilation-results) |
-| **IaC Syntax & Schema** | `terraform validate` across 7 modular submodules | `PASS` | [1.3 Terraform Validation](#13-terraform-syntax--schema-validation) |
-| **IaC Security Compliance** | Checkov static analysis (91 security checks passed, 0 failed) | `PASS` | [1.4 Checkov Security Scan](#14-checkov-iac-security-scan-results) |
-| **Containerization Security** | Multi-stage Docker build with non-root user (UID 10001) | `PASS` | [1.5 Container Security](#15-container-build--security-profile) |
-| **Kubernetes Architecture** | Manifests declare probes, resource limits, and IRSA bindings | `PASS` | [1.6 Kubernetes Compliance](#16-kubernetes-manifest-compliance) |
-| **Continuous Integration** | Automated GitHub Actions CI workflow (lint, test, checkov) | `PASS` | [1.7 CI/CD Automation](#17-github-actions-pipeline-verification) |
+| **Embedded Cache & Watcher** | Actor-based `redb` transactions & debounced filesystem watching | `PASS` | [1.2 Daemon Core Tests](#12-daemon-core-unit--integration-test-results) |
+| **Cargo Workspace Compilation** | All 3 crates compile in release mode with zero warnings | `PASS` | [1.3 Workspace Build](#13-workspace-compilation-results) |
+| **IaC Syntax & Schema** | `terraform validate` across 7 modular submodules | `PASS` | [1.4 Terraform Validation](#14-terraform-syntax--schema-validation) |
+| **IaC Security Compliance** | Checkov static analysis (91 security checks passed, 0 failed) | `PASS` | [1.5 Checkov Security Scan](#15-checkov-iac-security-scan-results) |
+| **Containerization Security** | Multi-stage Docker build with non-root user (UID 10001) | `PASS` | [1.6 Container Security](#16-container-build--security-profile) |
+| **Kubernetes Architecture** | Manifests declare probes, resource limits, and IRSA bindings | `PASS` | [1.7 Kubernetes Compliance](#17-kubernetes-manifest-compliance) |
+| **Continuous Integration** | Automated GitHub Actions CI workflow (lint, test, checkov) | `PASS` | [1.8 CI/CD Automation](#18-github-actions-pipeline-verification) |
 
 ---
 
@@ -37,7 +38,21 @@ test hashing::tests::test_hash_reader_matches_hash_bytes ... ok
 test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
-### 1.2 Workspace Compilation Results
+### 1.2 Daemon Core Unit & Integration Test Results
+
+```text
+$ cargo test -p aurafs-daemon
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.46s
+     Running unittests src/main.rs (target/debug/deps/aurafs_daemon-4051af74ff1d81ba)
+
+running 2 tests
+test cache::database::tests::test_cache_crud_and_actor_concurrency ... ok
+test watcher::debouncer::tests::test_watcher_debouncer_lifecycle ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+```
+
+### 1.3 Workspace Compilation Results
 
 ```text
 $ cargo build --workspace

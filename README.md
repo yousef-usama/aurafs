@@ -158,6 +158,35 @@ AuraFS metadata access patterns are handled by a single table using composite ke
 
 ---
 
+### Incident 004: FSEvents Symlink Resolution Mismatch on macOS Temp Directories
+
+- **Symptoms & Error**:
+  ```text
+  thread 'watcher::debouncer::tests::test_watcher_debouncer_lifecycle' panicked at:
+  Timed out waiting for file creation event: Elapsed(())
+  ```
+- **Root Cause Analysis (RCA)**:
+  On macOS, temporary directories created via `tempfile::tempdir()` live under `/var/folders/...`, which is a symbolic link to `/private/var/folders/...`. The `notify` crate's FSEvents backend emits canonical paths starting with `/private/var/`, causing `path.strip_prefix(&watch_dir)` to fail because the uncanonicalized watch directory prefix `/var/` did not match.
+- **Resolution & Engineering Remediation**:
+  Updated `FileWatcherService::new` to canonicalize the watched directory path (`std::fs::canonicalize`) upon initialization, guaranteeing identical path prefixes across all operating system file notification callbacks.
+
+---
+
+### Incident 005: Clippy `result_large_err` Stack Frame Bloat on Embedded Storage Errors
+
+- **Symptoms & Error**:
+  ```text
+  error: the `Err`-variant returned from this function is very large
+  the largest variant contains at least 160 bytes
+  help: try reducing the size of `CacheError`, for example by boxing large elements
+  ```
+- **Root Cause Analysis (RCA)**:
+  `redb::TransactionError`, `redb::TableError`, and `redb::StorageError` are extensive diagnostic types exceeding 160 bytes each. Returning unboxed variants inside `Result<T, CacheError>` forced every function call on the hot execution path to allocate large stack frames, violating zero-overhead principles and failing strict CI linter thresholds.
+- **Resolution & Engineering Remediation**:
+  Refactored `CacheError` to box all underlying `redb` error types in heap memory (`Box<redb::TransactionError>`), shrinking `CacheError` to a lightweight 16-byte pointer representation and maintaining clean, high-performance stack frames.
+
+---
+
 ## 5. Cost Notes & Teardown Protocol
 
 ### Cost Optimization Architecture
