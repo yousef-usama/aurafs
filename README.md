@@ -1,4 +1,4 @@
-# AuraFS — Local-First Distributed File Synchronization Engine
+# AuraFS - Local-First Distributed File Synchronization Engine
 
 [![CI Pipeline](https://github.com/yousef-usama/aurafs/actions/workflows/ci.yml/badge.svg)](https://github.com/yousef-usama/aurafs/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
